@@ -1,0 +1,30 @@
+# O contexto de build é a RAIZ do monorepo (os Dockerfiles ficam em apps/*).
+# Mantenha isto enxuto: menos contexto = build mais rápido e imagem menor.
+**/node_modules
+**/dist
+**/build
+**/.turbo
+**/coverage
+**/*.tsbuildinfo
+
+# segredos e envs locais — NUNCA vão para a imagem (as envs vêm do runtime)
+.env
+.env.*
+apps/*/.env
+apps/*/.env.*
+
+# supabase (migrations/seed são aplicados pelo CLI, fora da imagem)
+supabase/.branches
+supabase/.temp
+**/.supabase
+
+# git / editor / OS
+.git
+.gitignore
+.vscode
+.idea
+.DS_Store
+*.log
+
+# infra não precisa ir para dentro das imagens
+infra

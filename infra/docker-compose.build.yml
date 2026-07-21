@@ -1,0 +1,30 @@
+# =============================================================================
+# Build + tag das imagens para o Docker Hub. NÃO é a stack de deploy.
+# Uso direto:
+#   REGISTRY=seu-usuario docker compose -f docker-compose.build.yml build
+#   REGISTRY=seu-usuario docker compose -f docker-compose.build.yml push
+# Ou, mais simples (com cross-build p/ a VPS): ./build-push.sh
+#
+# O contexto de build é a raiz do monorepo (..); os Dockerfiles ficam em apps/*.
+# =============================================================================
+services:
+  web:
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+      args:
+        # relativo => imagem serve qualquer domínio (API na mesma origem, sob /api)
+        VITE_API_URL: ${VITE_API_URL:-/api}
+    image: ${REGISTRY:-31.220.95.65:5000}/crm-web:${IMAGE_TAG:-latest}
+
+  api:
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+    image: ${REGISTRY:-31.220.95.65:5000}/crm-api:${IMAGE_TAG:-latest}
+
+  worker:
+    build:
+      context: ..
+      dockerfile: apps/worker/Dockerfile
+    image: ${REGISTRY:-31.220.95.65:5000}/crm-worker:${IMAGE_TAG:-latest}

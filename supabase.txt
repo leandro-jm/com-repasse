@@ -1,0 +1,4 @@
+hUdwyv-wusqah-petgu0
+
+NEXT_PUBLIC_SUPABASE_URL=https://asaamwyzcczhavrimzog.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_oVq3jcsohIlijRhkfSL27w_BavrCso7

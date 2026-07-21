@@ -1,0 +1,25 @@
+{
+  "name": "app-crm-carros",
+  "private": true,
+  "version": "0.1.0",
+  "description": "CRM de Repasse de Veículos — SaaS multi-tenant (React + Supabase + Evolution API)",
+  "packageManager": "pnpm@11.5.1",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "pnpm --filter web dev",
+    "api": "pnpm --filter api dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "worker": "pnpm --filter worker dev",
+    "db:start": "supabase start",
+    "db:reset": "supabase db reset",
+    "db:types": "supabase gen types typescript --local > packages/shared/src/database.types.ts"
+  },
+  "devDependencies": {
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.3"
+  }
+}

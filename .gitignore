@@ -1,0 +1,21 @@
+node_modules/
+dist/
+build/
+.turbo/
+coverage/
+
+# env
+.env
+.env.local
+.env.*.local
+
+# supabase
+supabase/.branches/
+supabase/.temp/
+**/.supabase/
+
+# editor / OS
+.DS_Store
+*.log
+.vscode/*
+!.vscode/extensions.json
