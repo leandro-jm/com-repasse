@@ -92,6 +92,7 @@ function ContratosTab() {
   const { activeTenant } = useSession();
   const tenantId = activeTenant!.tenant_id;
   const { toast } = useToast();
+  const qc = useQueryClient();
   const navigate = useNavigate();
 
   const { data, isLoading } = useQuery({
@@ -112,6 +113,18 @@ function ContratosTab() {
       else toast('Link indisponível', 'error');
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Erro ao baixar', 'error');
+    }
+  }
+
+  async function remover(id: string) {
+    if (!confirm('Excluir este contrato? O PDF também será removido. Esta ação não pode ser desfeita.'))
+      return;
+    try {
+      await api.contratos.remover(id);
+      toast('Contrato excluído', 'success');
+      qc.invalidateQueries({ queryKey: ['contratos', tenantId] });
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Erro ao excluir', 'error');
     }
   }
 
@@ -144,6 +157,9 @@ function ContratosTab() {
             <Badge variant={ct.status === 'gerado' ? 'success' : 'secondary'}>{ct.status}</Badge>
             <Button variant="outline" size="sm" onClick={() => baixar(ct.id)}>
               <Download className="h-3.5 w-3.5" /> PDF
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => remover(ct.id)} aria-label="Excluir">
+              <Trash2 className="h-4 w-4 text-destructive" />
             </Button>
           </div>
         </div>

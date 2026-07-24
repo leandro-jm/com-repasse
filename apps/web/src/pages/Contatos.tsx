@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Upload, Users, Search, MessageCircle, Check } from 'lucide-react';
+import { Plus, Upload, Download, Users, Search, MessageCircle, Check, X, Trash2 } from 'lucide-react';
 import { normalizarTelefoneBR, TIPO_CONTATO } from '@crm/shared';
 import { api } from '@/lib/api';
 import { useSession } from '@/providers/session';
@@ -36,18 +36,44 @@ export function ContatosPage() {
   const navigate = useNavigate();
   const fileRef = useRef<HTMLInputElement>(null);
   const [busca, setBusca] = useState('');
+  const [grupoFiltro, setGrupoFiltro] = useState('');
 
   const { data, isLoading } = useQuery({
     queryKey: ['contatos', tenantId],
     queryFn: () => api.contatos.list<Contato[]>(),
   });
 
+  const { data: grupos } = useQuery({
+    queryKey: ['grupos', tenantId],
+    queryFn: () => api.contatos.grupos<string[]>(),
+  });
+
   const filtrados = useMemo(() => {
     const q = busca.toLowerCase();
     return (data ?? []).filter(
-      (c) => c.nome.toLowerCase().includes(q) || c.telefone.includes(q),
+      (c) =>
+        (c.nome.toLowerCase().includes(q) || c.telefone.includes(q)) &&
+        (!grupoFiltro || c.tags.includes(grupoFiltro)),
     );
-  }, [data, busca]);
+  }, [data, busca, grupoFiltro]);
+
+  function baixarModelo() {
+    // Cabeçalho na mesma ordem/nome que o parser de importCSV espera (nome,telefone,tipo,cidade).
+    const conteudo = [
+      'nome,telefone,tipo,cidade',
+      'Auto Center Zé,(11) 90000-1001,lojista,São Paulo',
+      'Maria Cliente,(21) 98888-7777,cliente_final,Rio de Janeiro',
+      'João Captador,(31) 97777-6666,captador,Belo Horizonte',
+    ].join('\n');
+    // BOM UTF-8 para o Excel exibir acentos corretamente.
+    const blob = new Blob(['﻿' + conteudo], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'modelo-contatos.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   async function importCSV(file: File) {
     const text = await file.text();
@@ -76,6 +102,18 @@ export function ContatosPage() {
     }
   }
 
+  async function remover(c: Contato) {
+    if (!confirm(`Excluir o contato "${c.nome}"? Esta ação não pode ser desfeita.`)) return;
+    try {
+      await api.contatos.remover(c.id);
+      toast('Contato excluído', 'success');
+      qc.invalidateQueries({ queryKey: ['contatos', tenantId] });
+      qc.invalidateQueries({ queryKey: ['grupos', tenantId] });
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Erro ao excluir', 'error');
+    }
+  }
+
   const optInCount = (data ?? []).filter((c) => c.opt_in_whatsapp && c.ativo).length;
 
   return (
@@ -85,6 +123,9 @@ export function ContatosPage() {
         description={`${data?.length ?? 0} contatos · ${optInCount} elegíveis para campanha`}
         action={
           <div className="flex gap-2">
+            <Button variant="outline" onClick={baixarModelo}>
+              <Download className="h-4 w-4" /> Modelo
+            </Button>
             <input
               ref={fileRef}
               type="file"
@@ -106,14 +147,30 @@ export function ContatosPage() {
         }
       />
 
-      <div className="relative mb-4">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder="Buscar por nome ou telefone…"
-          value={busca}
-          onChange={(e) => setBusca(e.target.value)}
-          className="pl-9"
-        />
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por nome ou telefone…"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        {(grupos ?? []).length > 0 && (
+          <Select
+            value={grupoFiltro}
+            onChange={(e) => setGrupoFiltro(e.target.value)}
+            className="sm:w-52"
+          >
+            <option value="">Todos os grupos</option>
+            {grupos!.map((g) => (
+              <option key={g} value={g}>
+                {g}
+              </option>
+            ))}
+          </Select>
+        )}
       </div>
 
       {isLoading ? (
@@ -132,20 +189,30 @@ export function ContatosPage() {
       ) : (
         <Card className="divide-y divide-border">
           {filtrados.map((c) => (
-            <button
-              key={c.id}
-              onClick={() => navigate(`/contatos/${c.id}`)}
-              className="flex w-full items-center gap-3 p-4 text-left hover:bg-accent/50"
-            >
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 font-medium text-primary">
-                {c.nome.slice(0, 2).toUpperCase()}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-medium">{c.nome}</p>
-                <p className="truncate text-sm text-muted-foreground">
-                  {c.telefone} {c.cidade ? `· ${c.cidade}` : ''}
-                </p>
-              </div>
+            <div key={c.id} className="flex items-center gap-3 p-4 hover:bg-accent/50">
+              <button
+                onClick={() => navigate(`/contatos/${c.id}`)}
+                className="flex min-w-0 flex-1 items-center gap-3 text-left"
+              >
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 font-medium text-primary">
+                  {c.nome.slice(0, 2).toUpperCase()}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium">{c.nome}</p>
+                  <p className="truncate text-sm text-muted-foreground">
+                    {c.telefone} {c.cidade ? `· ${c.cidade}` : ''}
+                  </p>
+                  {c.tags.length > 0 && (
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {c.tags.map((t) => (
+                        <Badge key={t} variant="secondary" className="text-[10px]">
+                          {t}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </button>
               <div className="flex shrink-0 items-center gap-1.5">
                 {c.opt_in_whatsapp && c.ativo && (
                   <Badge variant="success">
@@ -153,8 +220,11 @@ export function ContatosPage() {
                   </Badge>
                 )}
                 {!c.ativo && <Badge variant="secondary">inativo</Badge>}
+                <Button variant="ghost" size="icon" onClick={() => remover(c)} aria-label="Excluir">
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
               </div>
-            </button>
+            </div>
           ))}
         </Card>
       )}
@@ -199,7 +269,21 @@ function ContatoForm({ contato }: { contato: Contato | null }) {
   const [cidade, setCidade] = useState(contato?.cidade ?? '');
   const [optIn, setOptIn] = useState(contato?.opt_in_whatsapp ?? true);
   const [ativo, setAtivo] = useState(contato?.ativo ?? true);
+  const [tags, setTags] = useState<string[]>(contato?.tags ?? []);
+  const [novoGrupo, setNovoGrupo] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // sugestões de grupos existentes (tags já usadas no tenant)
+  const { data: grupos } = useQuery({
+    queryKey: ['grupos', tenantId],
+    queryFn: () => api.contatos.grupos<string[]>(),
+  });
+
+  function addGrupo(valor: string) {
+    const g = valor.trim();
+    if (g && !tags.includes(g)) setTags([...tags, g]);
+    setNovoGrupo('');
+  }
 
   async function salvar(e: React.FormEvent) {
     e.preventDefault();
@@ -212,12 +296,14 @@ function ContatoForm({ contato }: { contato: Contato | null }) {
       cidade: cidade || null,
       opt_in_whatsapp: optIn,
       ativo,
+      tags,
     };
     try {
       if (contato) await api.contatos.update(contato.id, payload);
       else await api.contatos.create(payload);
       toast('Contato salvo', 'success');
       qc.invalidateQueries({ queryKey: ['contatos', tenantId] });
+      qc.invalidateQueries({ queryKey: ['grupos', tenantId] });
       navigate(LISTA);
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Erro ao salvar', 'error');
@@ -247,6 +333,47 @@ function ContatoForm({ contato }: { contato: Contato | null }) {
             <Input value={cidade} onChange={(e) => setCidade(e.target.value)} />
           </Field>
         </div>
+        <Field label="Grupos (para envio segmentado)">
+          {tags.length > 0 && (
+            <div className="mb-2 flex flex-wrap gap-1.5">
+              {tags.map((t) => (
+                <Badge key={t} variant="secondary" className="gap-1">
+                  {t}
+                  <button
+                    type="button"
+                    onClick={() => setTags(tags.filter((x) => x !== t))}
+                    className="rounded-full hover:text-destructive"
+                    aria-label={`Remover ${t}`}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              ))}
+            </div>
+          )}
+          <div className="flex gap-2">
+            <Input
+              list="grupos-existentes"
+              value={novoGrupo}
+              onChange={(e) => setNovoGrupo(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  addGrupo(novoGrupo);
+                }
+              }}
+              placeholder="Adicionar grupo (ex.: Lojistas SP)"
+            />
+            <datalist id="grupos-existentes">
+              {(grupos ?? []).map((g) => (
+                <option key={g} value={g} />
+              ))}
+            </datalist>
+            <Button type="button" variant="outline" onClick={() => addGrupo(novoGrupo)}>
+              <Plus className="h-4 w-4" /> Add
+            </Button>
+          </div>
+        </Field>
         <label className="flex items-center justify-between rounded-lg border border-border p-3">
           <span className="text-sm font-medium">Opt-in WhatsApp (consentimento)</span>
           <Switch checked={optIn} onCheckedChange={setOptIn} />

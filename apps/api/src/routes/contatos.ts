@@ -15,6 +15,16 @@ contatoRoutes.get('/', async (c) => {
   return c.json(data);
 });
 
+// grupos = tags distintas usadas pelos contatos do tenant (RLS já isola); alimenta os seletores
+contatoRoutes.get('/meta/grupos', async (c) => {
+  const { data, error } = await c.get('db').from('contatos').select('tags');
+  if (error) return c.json({ error: error.message }, 400);
+  const set = new Set<string>();
+  for (const r of (data ?? []) as { tags: string[] | null }[])
+    for (const t of r.tags ?? []) if (t) set.add(t);
+  return c.json([...set].sort((a, b) => a.localeCompare(b, 'pt-BR')));
+});
+
 contatoRoutes.post('/', async (c) => {
   const v = validate(contatoSchema, await c.req.json().catch(() => null));
   if (!v.ok) return c.json({ error: v.error }, 400);
@@ -34,6 +44,18 @@ contatoRoutes.patch('/:id', async (c) => {
   if (!v.ok) return c.json({ error: v.error }, 400);
   const patch = somentePresentes(v.data, raw);
   const { error } = await c.get('db').from('contatos').update(patch).eq('id', c.req.param('id'));
+  if (error) return c.json({ error: error.message }, 400);
+  return c.json({ ok: true });
+});
+
+// exclusão definitiva (RLS filtra o tenant; select-primeiro p/ 404 real).
+// FK: negocios.comprador_id vira NULL, campanha_envios cascata — tratado pelo banco.
+contatoRoutes.delete('/:id', async (c) => {
+  const db = c.get('db');
+  const id = c.req.param('id');
+  const { data: ct } = await db.from('contatos').select('id').eq('id', id).maybeSingle();
+  if (!ct) return c.json({ error: 'Contato não encontrado' }, 404);
+  const { error } = await db.from('contatos').delete().eq('id', id);
   if (error) return c.json({ error: error.message }, 400);
   return c.json({ ok: true });
 });

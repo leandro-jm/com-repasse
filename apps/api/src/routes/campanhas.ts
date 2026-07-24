@@ -46,16 +46,23 @@ campanhaRoutes.post('/novo-carro', async (c) => {
     negocio_id: string;
     dados: DadosAnuncio;
     template?: string | null;
+    grupo?: string | null;
   };
 
-  const { data: contatos, error: cErr } = await db
-    .from('contatos')
-    .select('id')
-    .eq('opt_in_whatsapp', true)
-    .eq('ativo', true);
+  // elegíveis (opt-in + ativo); se um grupo for informado, filtra pela tag (@>)
+  let q = db.from('contatos').select('id').eq('opt_in_whatsapp', true).eq('ativo', true);
+  if (body.grupo) q = q.contains('tags', [body.grupo]);
+  const { data: contatos, error: cErr } = await q;
   if (cErr) return c.json({ error: cErr.message }, 400);
   if (!contatos || contatos.length === 0)
-    return c.json({ error: 'Nenhum contato elegível (opt-in + ativo).' }, 422);
+    return c.json(
+      {
+        error: body.grupo
+          ? `Nenhum contato elegível (opt-in + ativo) no grupo "${body.grupo}".`
+          : 'Nenhum contato elegível (opt-in + ativo).',
+      },
+      422,
+    );
 
   // Reserva atômica do uso (RB8): evita corrida de duas campanhas simultâneas
   // passarem no limite. O metering acontece AQUI (não mais no worker).

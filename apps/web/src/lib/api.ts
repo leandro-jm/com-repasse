@@ -180,14 +180,22 @@ export const api = {
     list: <T>() => request<T>('/negocios'),
     create: <T>(body: unknown) => request<T>('/negocios', { method: 'POST', body }),
     update: (id: string, body: unknown) => request(`/negocios/${id}`, { method: 'PATCH', body }),
+    remover: (id: string) => request(`/negocios/${id}`, { method: 'DELETE' }),
     fotos: <T>(id: string) => request<T>(`/negocios/${id}/fotos`),
     fontes: <T>() => request<T>('/negocios/meta/fontes'),
+    fontesTodas: <T>() => request<T>('/negocios/meta/fontes/todas'),
+    criarFonte: <T>(body: unknown) =>
+      request<T>('/negocios/meta/fontes', { method: 'POST', body }),
+    atualizarFonte: (id: string, body: unknown) =>
+      request(`/negocios/meta/fontes/${id}`, { method: 'PATCH', body }),
   },
 
   contatos: {
     list: <T>() => request<T>('/contatos'),
+    grupos: <T>() => request<T>('/contatos/meta/grupos'),
     create: (body: unknown) => request('/contatos', { method: 'POST', body }),
     update: (id: string, body: unknown) => request(`/contatos/${id}`, { method: 'PATCH', body }),
+    remover: (id: string) => request(`/contatos/${id}`, { method: 'DELETE' }),
     bulk: (contatos: unknown[]) =>
       request<{ inserted: number }>('/contatos/bulk', { method: 'POST', body: { contatos } }),
   },
@@ -195,8 +203,12 @@ export const api = {
   campanhas: {
     list: <T>() => request<T>('/campanhas'),
     envios: <T>(id: string) => request<T>(`/campanhas/${id}/envios`),
-    novoCarro: (body: { negocio_id: string; dados: unknown; template?: string | null }) =>
-      request<{ ok: boolean; total: number }>('/campanhas/novo-carro', { method: 'POST', body }),
+    novoCarro: (body: {
+      negocio_id: string;
+      dados: unknown;
+      template?: string | null;
+      grupo?: string | null;
+    }) => request<{ ok: boolean; total: number }>('/campanhas/novo-carro', { method: 'POST', body }),
   },
 
   financeiro: {
@@ -208,10 +220,12 @@ export const api = {
     centros: <T>() => request<T>('/financeiro/custos/centros'),
     custos: <T>() => request<T>('/financeiro/custos'),
     criarCusto: (body: unknown) => request('/financeiro/custos', { method: 'POST', body }),
+    removerCusto: (id: string) => request(`/financeiro/custos/${id}`, { method: 'DELETE' }),
     acordos: <T>() => request<T>('/financeiro/acordos'),
     criarAcordo: (body: unknown) => request('/financeiro/acordos', { method: 'POST', body }),
     atualizarAcordo: (id: string, body: unknown) =>
       request(`/financeiro/acordos/${id}`, { method: 'PATCH', body }),
+    removerAcordo: (id: string) => request(`/financeiro/acordos/${id}`, { method: 'DELETE' }),
     pagamentos: <T>(id: string) => request<T>(`/financeiro/acordos/${id}/pagamentos`),
     addPagamento: (id: string, body: unknown) =>
       request(`/financeiro/acordos/${id}/pagamentos`, { method: 'POST', body }),
@@ -246,6 +260,7 @@ export const api = {
         body,
       }),
     download: (id: string) => request<{ url: string }>(`/contratos/${id}/download`),
+    remover: (id: string) => request(`/contratos/${id}`, { method: 'DELETE' }),
     templates: {
       list: <T>() => request<T>('/contratos/templates'),
       create: (body: unknown) => request('/contratos/templates', { method: 'POST', body }),

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Wallet, Check } from 'lucide-react';
+import { Plus, Wallet, Check, Trash2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useSession } from '@/providers/session';
 import { brl, dataBR } from '@/lib/utils';
@@ -26,6 +26,8 @@ const LISTA = '/custos';
 export function CustosPage() {
   const { activeTenant } = useSession();
   const tenantId = activeTenant!.tenant_id;
+  const { toast } = useToast();
+  const qc = useQueryClient();
   const navigate = useNavigate();
 
   const { data, isLoading } = useQuery({
@@ -34,6 +36,17 @@ export function CustosPage() {
   });
 
   const total = (data ?? []).reduce((s, l) => s + Number(l.valor), 0);
+
+  async function remover(l: Lancamento) {
+    if (!confirm(`Excluir o lançamento "${l.descricao}"? Esta ação não pode ser desfeita.`)) return;
+    try {
+      await api.financeiro.removerCusto(l.id);
+      toast('Lançamento excluído', 'success');
+      qc.invalidateQueries({ queryKey: ['lancamentos', tenantId] });
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Erro ao excluir', 'error');
+    }
+  }
 
   return (
     <>
@@ -54,14 +67,19 @@ export function CustosPage() {
       ) : (
         <Card className="divide-y divide-border">
           {data!.map((l) => (
-            <div key={l.id} className="flex items-center justify-between p-4">
-              <div>
+            <div key={l.id} className="flex items-center justify-between gap-3 p-4">
+              <div className="min-w-0">
                 <p className="font-medium">{l.descricao}</p>
                 <p className="text-xs text-muted-foreground">
                   {l.centros_custo?.nome} · {dataBR(l.data_pagamento)}
                 </p>
               </div>
-              <span className="font-semibold">{brl(Number(l.valor))}</span>
+              <div className="flex shrink-0 items-center gap-2">
+                <span className="font-semibold">{brl(Number(l.valor))}</span>
+                <Button variant="ghost" size="icon" onClick={() => remover(l)} aria-label="Excluir">
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              </div>
             </div>
           ))}
         </Card>

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Car, Filter, Send } from 'lucide-react';
+import { Plus, Car, Filter, Send, Trash2 } from 'lucide-react';
 import { STATUS_NEGOCIO } from '@crm/shared';
 import { api } from '@/lib/api';
 import { useSession } from '@/providers/session';
@@ -108,6 +108,22 @@ export function NegociosPage() {
       toast(err instanceof Error ? err.message : 'Falha ao criar campanha', 'error');
     } finally {
       setEnviandoId(null);
+    }
+  }
+
+  async function remover(n: Negocio) {
+    if (
+      !confirm(
+        `Excluir o negócio "${n.carro}"? Os contratos gerados e as fotos deste negócio também serão removidos. Esta ação não pode ser desfeita.`,
+      )
+    )
+      return;
+    try {
+      await api.negocios.remover(n.id);
+      toast('Negócio excluído', 'success');
+      qc.invalidateQueries({ queryKey: ['negocios', tenantId] });
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Erro ao excluir', 'error');
     }
   }
 
@@ -225,6 +241,9 @@ export function NegociosPage() {
                     onClick={() => dispararCampanha(n)}
                   >
                     <Send className="h-3.5 w-3.5" /> Enviar p/ lista
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={() => remover(n)} aria-label="Excluir">
+                    <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
                 </div>
               </Card>

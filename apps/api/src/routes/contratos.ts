@@ -202,3 +202,16 @@ contratoRoutes.get('/:id/download', async (c) => {
   if (sErr) return c.json({ error: sErr.message }, 400);
   return c.json({ url: signed.signedUrl });
 });
+
+// exclusão definitiva de um contrato gerado (mesma permissão do POST /; select-primeiro p/ 404).
+// remove o PDF do bucket privado antes de apagar a linha p/ não deixar arquivo órfão.
+contratoRoutes.delete('/:id', async (c) => {
+  const db = c.get('db');
+  const id = c.req.param('id');
+  const { data: ct } = await db.from('contratos').select('pdf_url').eq('id', id).maybeSingle();
+  if (!ct) return c.json({ error: 'Contrato não encontrado' }, 404);
+  if (ct.pdf_url) await db.storage.from('contratos').remove([ct.pdf_url]);
+  const { error } = await db.from('contratos').delete().eq('id', id);
+  if (error) return c.json({ error: error.message }, 400);
+  return c.json({ ok: true });
+});

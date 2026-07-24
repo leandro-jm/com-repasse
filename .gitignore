@@ -9,6 +9,10 @@ coverage/
 .env.local
 .env.*.local
 
+# compose preenchido com segredos (gerado a partir do .env) — nunca commitar
+infra/docker-compose.filled.yml
+infra/.env
+
 # supabase
 supabase/.branches/
 supabase/.temp/

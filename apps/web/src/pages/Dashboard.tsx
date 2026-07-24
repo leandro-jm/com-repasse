@@ -84,10 +84,26 @@ interface DreDetalhe {
 
 const ANO_ATUAL = new Date().getFullYear();
 
+const MESES = [
+  'Janeiro',
+  'Fevereiro',
+  'Março',
+  'Abril',
+  'Maio',
+  'Junho',
+  'Julho',
+  'Agosto',
+  'Setembro',
+  'Outubro',
+  'Novembro',
+  'Dezembro',
+];
+
 export function DashboardPage() {
   const { activeTenant } = useSession();
   const tenantId = activeTenant!.tenant_id;
   const [ano, setAno] = useState(ANO_ATUAL);
+  const [mes, setMes] = useState(''); // '' = ano todo; senão 'MM'
   const [abertos, setAbertos] = useState<Set<string>>(new Set());
 
   const toggle = (competencia: string) =>
@@ -105,19 +121,15 @@ export function DashboardPage() {
   if (isLoading) return <PageLoader />;
 
   const linhas = data ?? [];
-  const totalReceita = linhas.reduce((s, l) => s + Number(l.receita_bruta), 0);
-  const totalLucro = linhas.reduce((s, l) => s + Number(l.lucro_liquido), 0);
-  const totalVendas = linhas.reduce((s, l) => s + Number(l.num_vendas), 0);
-  // Ticket médio anual = faturamento das vendas ÷ nº de vendas (não receita bruta).
-  // ticket_medio mensal do RPC já é faturamento_vendas/num_vendas, então
-  // ticket_medio * num_vendas reconstrói o faturamento das vendas do mês.
-  const faturamentoVendas = linhas.reduce(
-    (s, l) => s + Number(l.ticket_medio) * Number(l.num_vendas),
-    0,
-  );
-  const ticketMedio = totalVendas > 0 ? faturamentoVendas / totalVendas : 0;
+  // Filtro por mês: '' = ano todo; senão só a competência YYYY-MM correspondente.
+  const linhasFiltradas = mes ? linhas.filter((l) => l.competencia.slice(5) === mes) : linhas;
+  const totalReceita = linhasFiltradas.reduce((s, l) => s + Number(l.receita_bruta), 0);
+  const totalLucro = linhasFiltradas.reduce((s, l) => s + Number(l.lucro_liquido), 0);
+  const totalVendas = linhasFiltradas.reduce((s, l) => s + Number(l.num_vendas), 0);
+  // Ticket médio = lucro líquido ÷ nº de vendas.
+  const ticketMedio = totalVendas > 0 ? totalLucro / totalVendas : 0;
 
-  const chartData = linhas.map((l) => ({
+  const chartData = linhasFiltradas.map((l) => ({
     mes: l.competencia.slice(5),
     lucro: Number(l.lucro_liquido),
   }));
@@ -128,13 +140,23 @@ export function DashboardPage() {
         title="Dashboard"
         description="DRE anual e indicadores do negócio"
         action={
-          <Select value={ano} onChange={(e) => setAno(Number(e.target.value))} className="w-28">
-            {[ANO_ATUAL, ANO_ATUAL - 1, ANO_ATUAL - 2].map((a) => (
-              <option key={a} value={a}>
-                {a}
-              </option>
-            ))}
-          </Select>
+          <div className="flex gap-2">
+            <Select value={mes} onChange={(e) => setMes(e.target.value)} className="w-36">
+              <option value="">Ano todo</option>
+              {MESES.map((nome, i) => (
+                <option key={nome} value={String(i + 1).padStart(2, '0')}>
+                  {nome}
+                </option>
+              ))}
+            </Select>
+            <Select value={ano} onChange={(e) => setAno(Number(e.target.value))} className="w-28">
+              {[ANO_ATUAL, ANO_ATUAL - 1, ANO_ATUAL - 2].map((a) => (
+                <option key={a} value={a}>
+                  {a}
+                </option>
+              ))}
+            </Select>
+          </div>
         }
       />
 
@@ -152,7 +174,11 @@ export function DashboardPage() {
 
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle>Lucro líquido por mês — {ano}</CardTitle>
+          <CardTitle>
+            {mes
+              ? `Lucro líquido — ${MESES[Number(mes) - 1]}/${ano}`
+              : `Lucro líquido por mês — ${ano}`}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="h-64 w-full">
@@ -208,7 +234,7 @@ export function DashboardPage() {
               </tr>
             </thead>
             <tbody>
-              {linhas.map((l) => {
+              {linhasFiltradas.map((l) => {
                 const aberto = abertos.has(l.competencia);
                 return (
                   <Fragment key={l.competencia}>

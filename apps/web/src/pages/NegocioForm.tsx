@@ -90,7 +90,14 @@ function NegocioForm({
   const [fotos, setFotos] = useState<File[]>([]);
   const [fotosExistentes, setFotosExistentes] = useState(0);
   const [enviarLista, setEnviarLista] = useState(false);
+  const [grupoEnvio, setGrupoEnvio] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // grupos p/ o disparo segmentado (tags dos contatos)
+  const { data: grupos } = useQuery({
+    queryKey: ['grupos', tenantId],
+    queryFn: () => api.contatos.grupos<string[]>(),
+  });
 
   // ao editar, conta as fotos já existentes p/ respeitar o limite (RF1.4)
   useEffect(() => {
@@ -171,6 +178,7 @@ function NegocioForm({
         try {
           const r = await api.campanhas.novoCarro({
             negocio_id: negocioId,
+            grupo: grupoEnvio || null,
             dados: {
               carro: f.carro,
               ano: f.ano ? Number(f.ano) : null,
@@ -182,7 +190,10 @@ function NegocioForm({
               preco_pedido: f.preco_pedido ? Number(f.preco_pedido) : null,
             },
           });
-          toast(`Salvo + campanha para ${r.total} contatos`, 'success');
+          toast(
+            `Salvo + campanha para ${r.total} contatos${grupoEnvio ? ` (grupo ${grupoEnvio})` : ''}`,
+            'success',
+          );
         } catch (campErr) {
           toast(`Salvo, mas campanha falhou: ${campErr instanceof Error ? campErr.message : ''}`, 'error');
         }
@@ -334,12 +345,29 @@ function NegocioForm({
         </Field>
 
         {/* RF3.1 — enviar para a lista */}
-        <label className="flex items-center justify-between rounded-lg border border-primary/30 bg-primary/5 p-3">
-          <span className="flex items-center gap-2 text-sm font-medium">
-            <Send className="h-4 w-4 text-primary" /> Enviar para a lista (dispara campanha)
-          </span>
-          <Switch checked={enviarLista} onCheckedChange={setEnviarLista} />
-        </label>
+        <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
+          <label className="flex items-center justify-between">
+            <span className="flex items-center gap-2 text-sm font-medium">
+              <Send className="h-4 w-4 text-primary" /> Enviar para a lista (dispara campanha)
+            </span>
+            <Switch checked={enviarLista} onCheckedChange={setEnviarLista} />
+          </label>
+          {enviarLista && (
+            <div className="mt-3">
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                Destinatários
+              </label>
+              <Select value={grupoEnvio} onChange={(e) => setGrupoEnvio(e.target.value)}>
+                <option value="">Todos os elegíveis (opt-in + ativo)</option>
+                {(grupos ?? []).map((g) => (
+                  <option key={g} value={g}>
+                    Grupo: {g}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          )}
+        </div>
 
         <div className="flex justify-end gap-2 pt-1">
           <Button type="button" variant="outline" onClick={() => navigate(LISTA)}>

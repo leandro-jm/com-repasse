@@ -158,6 +158,17 @@ financeiroRoutes.post('/custos', async (c) => {
   return c.json({ ok: true });
 });
 
+// exclusão definitiva de um lançamento de custo (sem filhos; select-primeiro p/ 404 real)
+financeiroRoutes.delete('/custos/:id', async (c) => {
+  const db = c.get('db');
+  const id = c.req.param('id');
+  const { data: l } = await db.from('lancamentos_custo').select('id').eq('id', id).maybeSingle();
+  if (!l) return c.json({ error: 'Lançamento não encontrado' }, 404);
+  const { error } = await db.from('lancamentos_custo').delete().eq('id', id);
+  if (error) return c.json({ error: error.message }, 400);
+  return c.json({ ok: true });
+});
+
 // ---- Acordos (Módulo 7) ----
 financeiroRoutes.get('/acordos', async (c) => {
   const { data, error } = await c
@@ -186,6 +197,22 @@ financeiroRoutes.patch('/acordos/:id', async (c) => {
   if (!v.ok) return c.json({ error: v.error }, 400);
   const patch = somentePresentes(v.data, raw);
   const { error } = await c.get('db').from('acordos').update(patch).eq('id', id);
+  if (error) return c.json({ error: error.message }, 400);
+  return c.json({ ok: true });
+});
+
+// exclusão definitiva de um acordo. FK cascade apaga pagamentos e anexos (linhas);
+// os arquivos dos anexos ficariam órfãos no bucket — limpamos antes (padrão do DELETE /anexos).
+financeiroRoutes.delete('/acordos/:id', async (c) => {
+  const db = c.get('db');
+  const id = c.req.param('id');
+  if (!(await acordoDoTenant(db, id))) return c.json({ error: 'Acordo não encontrado' }, 404);
+  const { data: anexos } = await db.from('acordo_anexos').select('path').eq('acordo_id', id);
+  const paths = (anexos ?? [])
+    .map((a) => a.path as string | null)
+    .filter((p): p is string => Boolean(p));
+  if (paths.length) await db.storage.from('acordos').remove(paths);
+  const { error } = await db.from('acordos').delete().eq('id', id);
   if (error) return c.json({ error: error.message }, 400);
   return c.json({ ok: true });
 });

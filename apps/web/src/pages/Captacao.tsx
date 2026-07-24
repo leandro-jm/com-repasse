@@ -97,7 +97,10 @@ export function CaptacaoPage() {
                     <td className="p-3 font-medium">{r.fonte}</td>
                     <td className="p-3 text-right">{r.num_vendas}</td>
                     <td className="p-3 text-right">{brl(Number(r.lucro_liquido))}</td>
-                    <td className="p-3 text-right">{brl(Number(r.ticket_medio))}</td>
+                    {/* Ticket = lucro líquido ÷ nº de vendas. */}
+                    <td className="p-3 text-right">
+                      {brl(r.num_vendas > 0 ? Number(r.lucro_liquido) / r.num_vendas : 0)}
+                    </td>
                     <td className="p-3 text-right text-muted-foreground">{r.leads}</td>
                     <td className="p-3 text-right">{brl(Number(r.investimento))}</td>
                     <td className="p-3 text-right">{r.cpl == null ? '—' : brl(Number(r.cpl))}</td>

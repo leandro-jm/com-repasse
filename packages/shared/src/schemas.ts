@@ -7,6 +7,7 @@ export type Papel = (typeof PAPEIS)[number];
 
 export const STATUS_NEGOCIO = ['em_negociacao', 'vendido', 'entregue', 'problema'] as const;
 export const TIPO_CONTATO = ['lojista', 'cliente_final', 'captador'] as const;
+export const TIPO_FONTE = ['pago', 'organico'] as const;
 export const TIPO_ACORDO = ['pagamento', 'recebimento'] as const;
 export const STATUS_ACORDO = [
   'em_pagamento',
@@ -86,6 +87,14 @@ export const contatoSchema = z.object({
   observacoes: z.string().nullish(),
 });
 export type ContatoForm = z.infer<typeof contatoSchema>;
+
+/** Fonte de lead (dropdown controlado por tenant, Módulo 5). */
+export const fonteLeadSchema = z.object({
+  nome: z.string().min(1, 'Informe o nome'),
+  tipo: z.enum(TIPO_FONTE).default('pago'),
+  ativo: z.boolean().default(true),
+});
+export type FonteLeadForm = z.infer<typeof fonteLeadSchema>;
 
 /** Lançamento de custo (Módulo 6). */
 export const custoSchema = z.object({

@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, MessageCircle, Building2, Wifi, WifiOff, AlertTriangle, QrCode, Send } from 'lucide-react';
+import { Check, MessageCircle, Building2, Wifi, WifiOff, AlertTriangle, QrCode, Send, Tag, Plus } from 'lucide-react';
 import { TEMPLATE_PADRAO_ANUNCIO } from '@crm/shared';
 import { api } from '@/lib/api';
 import { useSession } from '@/providers/session';
+import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -31,6 +32,7 @@ export function ConfigPage() {
       <PageHeader title="Configurações" description={`Organização: ${activeTenant?.nome}`} />
       <div className="space-y-6">
         <DadosEmpresa cfg={cfg} />
+        <FontesLead />
         <TemplateCampanha cfg={cfg} />
         <ConexaoWhatsApp />
       </div>
@@ -121,6 +123,133 @@ function DadosEmpresa({ cfg }: { cfg?: TenantConfig }) {
             <Check className="h-4 w-4" /> Salvar
           </Button>
         </form>
+      </CardContent>
+    </Card>
+  );
+}
+
+interface Fonte {
+  id: string;
+  nome: string;
+  tipo: 'pago' | 'organico';
+  ativo: boolean;
+}
+
+function FontesLead() {
+  const { activeTenant } = useSession();
+  const tenantId = activeTenant!.tenant_id;
+  const { toast } = useToast();
+  const qc = useQueryClient();
+
+  const { data: fontes } = useQuery({
+    queryKey: ['fontes-todas', tenantId],
+    queryFn: () => api.negocios.fontesTodas<Fonte[]>(),
+  });
+
+  const [nome, setNome] = useState('');
+  const [tipo, setTipo] = useState<'pago' | 'organico'>('pago');
+  const [loading, setLoading] = useState(false);
+
+  // Revalida tanto a lista de admin quanto a lista ativa dos seletores.
+  function invalidar() {
+    qc.invalidateQueries({ queryKey: ['fontes-todas', tenantId] });
+    qc.invalidateQueries({ queryKey: ['fontes', tenantId] });
+  }
+
+  async function adicionar(e: React.FormEvent) {
+    e.preventDefault();
+    if (!nome.trim()) return;
+    setLoading(true);
+    try {
+      await api.negocios.criarFonte({ nome: nome.trim(), tipo });
+      setNome('');
+      setTipo('pago');
+      toast('Fonte adicionada', 'success');
+      invalidar();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Erro ao adicionar', 'error');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function atualizar(id: string, patch: Partial<Fonte>) {
+    try {
+      await api.negocios.atualizarFonte(id, patch);
+      invalidar();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Erro ao salvar', 'error');
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Tag className="h-5 w-5" /> Fontes de lead
+        </CardTitle>
+        <CardDescription>
+          Canais de origem exibidos no cadastro de negócios e no ROI de captação. Desativar
+          preserva o histórico e apenas oculta a fonte dos seletores.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={adicionar} className="flex flex-col gap-2 sm:flex-row">
+          <Input
+            value={nome}
+            onChange={(e) => setNome(e.target.value)}
+            placeholder="Nova fonte (ex.: Facebook)"
+            className="sm:flex-1"
+          />
+          <Select
+            value={tipo}
+            onChange={(e) => setTipo(e.target.value as 'pago' | 'organico')}
+            className="sm:w-40"
+          >
+            <option value="pago">Pago</option>
+            <option value="organico">Orgânico</option>
+          </Select>
+          <Button type="submit" loading={loading}>
+            <Plus className="h-4 w-4" /> Adicionar
+          </Button>
+        </form>
+
+        <div className="mt-4 divide-y divide-border">
+          {(fontes ?? []).map((f) => (
+            <div key={f.id} className={cn('flex items-center gap-2 py-2', !f.ativo && 'opacity-60')}>
+              <Input
+                key={f.nome}
+                defaultValue={f.nome}
+                onBlur={(e) => {
+                  const v = e.target.value.trim();
+                  if (v && v !== f.nome) atualizar(f.id, { nome: v });
+                  else e.target.value = f.nome;
+                }}
+                className="h-9 flex-1"
+              />
+              <Select
+                value={f.tipo}
+                onChange={(e) => atualizar(f.id, { tipo: e.target.value as 'pago' | 'organico' })}
+                className="h-9 w-32"
+              >
+                <option value="pago">Pago</option>
+                <option value="organico">Orgânico</option>
+              </Select>
+              {!f.ativo && <Badge variant="secondary">inativa</Badge>}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => atualizar(f.id, { ativo: !f.ativo })}
+              >
+                {f.ativo ? 'Desativar' : 'Reativar'}
+              </Button>
+            </div>
+          ))}
+          {fontes?.length === 0 && (
+            <p className="py-3 text-sm text-muted-foreground">Nenhuma fonte cadastrada ainda.</p>
+          )}
+        </div>
       </CardContent>
     </Card>
   );

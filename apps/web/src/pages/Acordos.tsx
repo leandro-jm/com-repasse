@@ -69,12 +69,30 @@ const hoje = () => new Date().toISOString().slice(0, 10);
 export function AcordosPage() {
   const { activeTenant } = useSession();
   const tenantId = activeTenant!.tenant_id;
+  const { toast } = useToast();
+  const qc = useQueryClient();
   const navigate = useNavigate();
 
   const { data, isLoading } = useQuery({
     queryKey: ['acordos', tenantId],
     queryFn: () => api.financeiro.acordos<Acordo[]>(),
   });
+
+  async function remover(a: Acordo) {
+    if (
+      !confirm(
+        `Excluir o acordo "${a.caso}"? Os pagamentos e anexos também serão removidos. Esta ação não pode ser desfeita.`,
+      )
+    )
+      return;
+    try {
+      await api.financeiro.removerAcordo(a.id);
+      toast('Acordo excluído', 'success');
+      qc.invalidateQueries({ queryKey: ['acordos', tenantId] });
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Erro ao excluir', 'error');
+    }
+  }
 
   return (
     <>
@@ -109,9 +127,22 @@ export function AcordosPage() {
                   <p className="font-medium">{a.caso}</p>
                   <p className="text-xs text-muted-foreground">{a.responsavel ?? 'Sem responsável'}</p>
                 </div>
-                <Badge variant={STATUS_VARIANT[a.status] ?? 'default'} className="shrink-0">
-                  {STATUS_LABEL[a.status] ?? a.status}
-                </Badge>
+                <div className="flex shrink-0 items-center gap-1">
+                  <Badge variant={STATUS_VARIANT[a.status] ?? 'default'}>
+                    {STATUS_LABEL[a.status] ?? a.status}
+                  </Badge>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      remover(a);
+                    }}
+                    aria-label="Excluir"
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
               </div>
               <div className="mt-3 grid grid-cols-3 gap-2 text-sm">
                 <div>
