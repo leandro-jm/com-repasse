@@ -56,6 +56,9 @@ export function CarroPublicoPage() {
   }
 
   const fotos = data.fotos?.length ? data.fotos : [];
+  const temSpecs = data.ano != null || data.km != null || data.fipe != null;
+  const temLinhas = !!data.ipva_status || !!data.pneus;
+  const temDetalhes = fotos.length > 0 || data.preco_pedido != null || temSpecs || temLinhas;
 
   return (
     <div className="min-h-screen bg-background">
@@ -73,51 +76,71 @@ export function CarroPublicoPage() {
       </header>
 
       <main className="mx-auto max-w-2xl px-4 py-6">
-        {fotos.length > 0 && (
-          <div className="space-y-2">
-            <div className="aspect-video overflow-hidden rounded-xl bg-muted">
+        <div className="space-y-2">
+          <div className="aspect-video overflow-hidden rounded-xl bg-muted">
+            {fotos.length > 0 ? (
               <img src={fotos[foto].url} alt={data.carro} className="h-full w-full object-cover" />
-            </div>
-            {fotos.length > 1 && (
-              <div className="flex gap-2 overflow-x-auto pb-1">
-                {fotos.map((f, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setFoto(i)}
-                    className={`h-16 w-24 shrink-0 overflow-hidden rounded-lg border-2 ${
-                      i === foto ? 'border-primary' : 'border-transparent'
-                    }`}
-                  >
-                    <img src={f.url} alt="" className="h-full w-full object-cover" />
-                  </button>
-                ))}
+            ) : (
+              <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-muted-foreground">
+                <Car className="h-12 w-12 opacity-40" />
+                <span className="text-sm">Fotos em breve</span>
               </div>
             )}
           </div>
-        )}
+          {fotos.length > 1 && (
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {fotos.map((f, i) => (
+                <button
+                  key={i}
+                  onClick={() => setFoto(i)}
+                  className={`h-16 w-24 shrink-0 overflow-hidden rounded-lg border-2 ${
+                    i === foto ? 'border-primary' : 'border-transparent'
+                  }`}
+                >
+                  <img src={f.url} alt="" className="h-full w-full object-cover" />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
         <div className="mt-5 space-y-4">
           <div>
             <h1 className="text-2xl font-bold">{data.carro}</h1>
-            {data.preco_pedido != null && (
+            {data.preco_pedido != null ? (
               <p className="mt-1 text-3xl font-bold text-primary">{brl(data.preco_pedido)}</p>
+            ) : (
+              <p className="mt-1 text-lg font-medium text-muted-foreground">Valor sob consulta</p>
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {data.ano && (
-              <Info icon={Calendar} label="Ano" value={String(data.ano)} />
-            )}
-            {data.km != null && (
-              <Info icon={Gauge} label="KM" value={`${data.km.toLocaleString('pt-BR')} km`} />
-            )}
-            {data.fipe != null && <Info icon={Car} label="FIPE" value={brl(data.fipe)} />}
-          </div>
+          {temSpecs && (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {data.ano != null && <Info icon={Calendar} label="Ano" value={String(data.ano)} />}
+              {data.km != null && (
+                <Info icon={Gauge} label="KM" value={`${data.km.toLocaleString('pt-BR')} km`} />
+              )}
+              {data.fipe != null && <Info icon={Car} label="FIPE" value={brl(data.fipe)} />}
+            </div>
+          )}
 
-          <dl className="divide-y divide-border rounded-xl border border-border">
-            {data.ipva_status && <Row label="IPVA" value={data.ipva_status === 'pago' ? 'Pago' : 'Em aberto'} />}
-            {data.pneus && <Row label="Pneus" value={data.pneus} />}
-          </dl>
+          {temLinhas && (
+            <dl className="divide-y divide-border rounded-xl border border-border">
+              {data.ipva_status && (
+                <Row label="IPVA" value={data.ipva_status === 'pago' ? 'Pago' : 'Em aberto'} />
+              )}
+              {data.pneus && <Row label="Pneus" value={data.pneus} />}
+            </dl>
+          )}
+
+          {!temDetalhes && (
+            <div className="rounded-xl border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
+              Mais informações e fotos deste veículo em breve.
+              <br />
+              Fale com <span className="font-medium text-foreground">{data.tenant.nome}</span> para
+              saber todos os detalhes.
+            </div>
+          )}
         </div>
       </main>
     </div>
