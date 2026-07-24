@@ -6,6 +6,7 @@ import {
   type DadosAnuncio,
 } from '@crm/shared';
 import { requireAuth, requireTenantAtivo, type AuthEnv } from '../middleware/auth.js';
+import { baseUrlPublica } from '../base-url.js';
 import { env } from '../env.js';
 
 export const campanhaRoutes = new Hono<AuthEnv>();
@@ -90,7 +91,8 @@ campanhaRoutes.post('/novo-carro', async (c) => {
     template = t?.template_campanha || null;
   }
   template = template || TEMPLATE_PADRAO_ANUNCIO;
-  const link = linkCarroPublico(env.PUBLIC_APP_URL, body.negocio_id);
+  // domínio real da requisição do front (fallback: PUBLIC_APP_URL do env)
+  const link = linkCarroPublico(baseUrlPublica(c, env.PUBLIC_APP_URL), body.negocio_id);
   const texto = montarMensagem(template, body.dados, link);
 
   const { data: camp, error: campErr } = await db
