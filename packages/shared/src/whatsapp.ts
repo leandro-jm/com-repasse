@@ -12,6 +12,7 @@ export interface DadosAnuncio {
   gastos?: string | null;
   fipe?: number | null;
   preco_pedido?: number | null;
+  observacao?: string | null;
 }
 
 /** Template padrão de anúncio por tenant (RF3.4 permite sobrescrever). */
@@ -44,6 +45,7 @@ export function montarMensagem(
     gastos: dados.gastos ? `Gastos: ${dados.gastos}` : '',
     fipe: brl(dados.fipe),
     preco: brl(dados.preco_pedido),
+    observacao: dados.observacao?.trim() || '',
     link: linkDetalhes,
   };
   return template

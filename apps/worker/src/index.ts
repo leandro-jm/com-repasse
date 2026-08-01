@@ -21,7 +21,6 @@ const numEnv = (v: string | undefined, padrao: number) => {
 
 const THROTTLE_MIN = numEnv(process.env.CAMPAIGN_THROTTLE_MIN_MS, 4000);
 const THROTTLE_MAX = numEnv(process.env.CAMPAIGN_THROTTLE_MAX_MS, 12000);
-const APP_URL = (process.env.PUBLIC_APP_URL ?? 'http://localhost:5173').replace(/\/$/, '');
 const BATCH = 20;
 const IDLE_MS = 5000;
 const CLAIM_TIMEOUT_MIN = 5; // reprocessa envios "presos" (claim órfão) após N minutos
@@ -163,8 +162,7 @@ async function processarLote(): Promise<number> {
         continue;
       }
       const imagem = await getCapa(campanha.negocio_id);
-      // rodapé de opt-out por destinatário (LGPD)
-      const texto = `${campanha.template_texto}\n\n_Para não receber: ${APP_URL}/sair/${e.contato_id}_`;
+      const texto = campanha.template_texto;
       await provider.enviar({ numero: contato.telefone, texto, imagemUrl: imagem });
       await marcarEnvio(e.id, { status: 'enviado', enviado_at: new Date().toISOString(), erro: null });
       // metering (RB8) é feito na reserva do enfileiramento (não aqui, para não contar em dobro).

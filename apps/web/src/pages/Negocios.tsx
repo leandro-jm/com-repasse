@@ -100,6 +100,7 @@ export function NegociosPage() {
           gastos: n.gastos,
           fipe: n.fipe,
           preco_pedido: n.preco_pedido,
+          observacao: n.observacoes,
         },
       });
       toast(`Campanha enfileirada para ${r.total} contatos`, 'success');

@@ -287,7 +287,7 @@ function TemplateCampanha({ cfg }: { cfg?: TenantConfig }) {
           <Send className="h-5 w-5" /> Template de campanha
         </CardTitle>
         <CardDescription>
-          Mensagem padrão do anúncio. Variáveis: {'{{carro}} {{ano}} {{km}} {{ipva}} {{pneus}} {{gastos}} {{fipe}} {{preco}} {{link}}'}. Vazio usa o padrão.
+          Mensagem padrão do anúncio. Variáveis: {'{{carro}} {{ano}} {{km}} {{ipva}} {{pneus}} {{gastos}} {{fipe}} {{preco}} {{observacao}} {{link}}'}. Vazio usa o padrão.
         </CardDescription>
       </CardHeader>
       <CardContent>

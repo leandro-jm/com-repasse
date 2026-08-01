@@ -188,6 +188,7 @@ function NegocioForm({
               gastos: f.gastos || null,
               fipe: f.fipe ? Number(f.fipe) : null,
               preco_pedido: f.preco_pedido ? Number(f.preco_pedido) : null,
+              observacao: f.observacoes || null,
             },
           });
           toast(
