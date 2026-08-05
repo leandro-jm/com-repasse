@@ -188,6 +188,12 @@ export const api = {
       request<T>('/negocios/meta/fontes', { method: 'POST', body }),
     atualizarFonte: (id: string, body: unknown) =>
       request(`/negocios/meta/fontes/${id}`, { method: 'PATCH', body }),
+    documentos: <T>() => request<T>('/negocios/meta/documentos'),
+    documentosTodos: <T>() => request<T>('/negocios/meta/documentos/todas'),
+    criarDocumento: <T>(body: unknown) =>
+      request<T>('/negocios/meta/documentos', { method: 'POST', body }),
+    atualizarDocumento: (id: string, body: unknown) =>
+      request(`/negocios/meta/documentos/${id}`, { method: 'PATCH', body }),
   },
 
   contatos: {
@@ -203,12 +209,10 @@ export const api = {
   campanhas: {
     list: <T>() => request<T>('/campanhas'),
     envios: <T>(id: string) => request<T>(`/campanhas/${id}/envios`),
-    novoCarro: (body: {
-      negocio_id: string;
-      dados: unknown;
-      template?: string | null;
-      grupo?: string | null;
-    }) => request<{ ok: boolean; total: number }>('/campanhas/novo-carro', { method: 'POST', body }),
+    criar: (body: { texto: string }) =>
+      request<{ id: string }>('/campanhas', { method: 'POST', body }),
+    enviar: (id: string, body: { instance_id: string; grupo?: string | null }) =>
+      request<{ ok: boolean; total: number }>(`/campanhas/${id}/enviar`, { method: 'POST', body }),
   },
 
   financeiro: {
@@ -271,11 +275,13 @@ export const api = {
   },
 
   whatsapp: {
-    get: <T>() => request<T>('/whatsapp'),
-    save: (body: unknown) => request('/whatsapp', { method: 'PUT', body }),
-    provisionar: () => request<{ ok: boolean; qr: string | null }>('/whatsapp/provisionar', { method: 'POST' }),
-    qr: () => request<{ base64: string | null; code: string | null }>('/whatsapp/qr'),
-    status: () => request<{ status: string; state?: string }>('/whatsapp/status'),
+    list: <T>() => request<T>('/whatsapp'),
+    criar: (body: unknown) => request<{ id: string }>('/whatsapp', { method: 'POST', body }),
+    atualizar: (id: string, body: unknown) =>
+      request(`/whatsapp/${id}`, { method: 'PATCH', body }),
+    remover: (id: string) => request(`/whatsapp/${id}`, { method: 'DELETE' }),
+    status: (id: string) =>
+      request<{ status: string; state?: string }>(`/whatsapp/${id}/status`),
   },
 
   billing: {
@@ -312,6 +318,14 @@ export const api = {
       const form = new FormData();
       files.forEach((f) => form.append('fotos', f));
       return request<{ fotos: unknown[] }>(`/storage/negocios/${negocioId}/fotos`, {
+        method: 'POST',
+        form,
+      });
+    },
+    uploadFotosCampanha: (campanhaId: string, files: File[]) => {
+      const form = new FormData();
+      files.forEach((f) => form.append('fotos', f));
+      return request<{ fotos: unknown[] }>(`/storage/campanhas/${campanhaId}/fotos`, {
         method: 'POST',
         form,
       });

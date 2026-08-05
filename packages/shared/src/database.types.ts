@@ -400,6 +400,7 @@ export type Database = {
           total_destinatarios: number
           total_enviados: number
           total_falhas: number
+          whatsapp_instance_id: string | null
         }
         Insert: {
           created_at?: string
@@ -413,6 +414,7 @@ export type Database = {
           total_destinatarios?: number
           total_enviados?: number
           total_falhas?: number
+          whatsapp_instance_id?: string | null
         }
         Update: {
           created_at?: string
@@ -426,6 +428,7 @@ export type Database = {
           total_destinatarios?: number
           total_enviados?: number
           total_falhas?: number
+          whatsapp_instance_id?: string | null
         }
         Relationships: [
           {
@@ -433,6 +436,13 @@ export type Database = {
             columns: ["criado_por"]
             isOneToOne: false
             referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campanhas_whatsapp_instance_id_fkey"
+            columns: ["whatsapp_instance_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_instances"
             referencedColumns: ["id"]
           },
           {
@@ -444,6 +454,48 @@ export type Database = {
           },
           {
             foreignKeyName: "campanhas_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campanha_fotos: {
+        Row: {
+          campanha_id: string
+          created_at: string
+          id: string
+          ordem: number
+          tenant_id: string
+          url: string
+        }
+        Insert: {
+          campanha_id: string
+          created_at?: string
+          id?: string
+          ordem?: number
+          tenant_id: string
+          url: string
+        }
+        Update: {
+          campanha_id?: string
+          created_at?: string
+          id?: string
+          ordem?: number
+          tenant_id?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campanha_fotos_campanha_id_fkey"
+            columns: ["campanha_id"]
+            isOneToOne: false
+            referencedRelation: "campanhas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campanha_fotos_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -677,6 +729,38 @@ export type Database = {
           },
         ]
       }
+      documentos_comprador: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          id: string
+          nome: string
+          tenant_id: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          nome: string
+          tenant_id: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          nome?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documentos_comprador_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fontes_lead: {
         Row: {
           ativo: boolean
@@ -827,6 +911,7 @@ export type Database = {
           data_entrega: string | null
           data_negocio: string
           data_retirada: string | null
+          documento_comprador_id: string | null
           fipe: number | null
           fonte_id: string | null
           gastos: string | null
@@ -857,6 +942,7 @@ export type Database = {
           data_entrega?: string | null
           data_negocio?: string
           data_retirada?: string | null
+          documento_comprador_id?: string | null
           fipe?: number | null
           fonte_id?: string | null
           gastos?: string | null
@@ -887,6 +973,7 @@ export type Database = {
           data_entrega?: string | null
           data_negocio?: string
           data_retirada?: string | null
+          documento_comprador_id?: string | null
           fipe?: number | null
           fonte_id?: string | null
           gastos?: string | null
@@ -912,6 +999,13 @@ export type Database = {
             columns: ["comprador_id"]
             isOneToOne: false
             referencedRelation: "contatos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "negocios_documento_comprador_id_fkey"
+            columns: ["documento_comprador_id"]
+            isOneToOne: false
+            referencedRelation: "documentos_comprador"
             referencedColumns: ["id"]
           },
           {
@@ -1130,11 +1224,14 @@ export type Database = {
           created_at: string
           id: string
           instance_name: string | null
+          label: string | null
           last_seen: string | null
           numero: string | null
           provider: Database["public"]["Enums"]["provider_whatsapp"]
           status: Database["public"]["Enums"]["status_instancia"]
           tenant_id: string
+          throttle_max_ms: number
+          throttle_min_ms: number
         }
         Insert: {
           api_key?: string | null
@@ -1142,11 +1239,14 @@ export type Database = {
           created_at?: string
           id?: string
           instance_name?: string | null
+          label?: string | null
           last_seen?: string | null
           numero?: string | null
           provider?: Database["public"]["Enums"]["provider_whatsapp"]
           status?: Database["public"]["Enums"]["status_instancia"]
           tenant_id: string
+          throttle_max_ms?: number
+          throttle_min_ms?: number
         }
         Update: {
           api_key?: string | null
@@ -1154,17 +1254,20 @@ export type Database = {
           created_at?: string
           id?: string
           instance_name?: string | null
+          label?: string | null
           last_seen?: string | null
           numero?: string | null
           provider?: Database["public"]["Enums"]["provider_whatsapp"]
           status?: Database["public"]["Enums"]["status_instancia"]
           tenant_id?: string
+          throttle_max_ms?: number
+          throttle_min_ms?: number
         }
         Relationships: [
           {
             foreignKeyName: "whatsapp_instances_tenant_id_fkey"
             columns: ["tenant_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "tenants"
             referencedColumns: ["id"]
           },

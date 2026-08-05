@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, ImagePlus, Send, X } from 'lucide-react';
+import { Check, ImagePlus, X } from 'lucide-react';
 import { lucroNegocio, MAX_FOTOS_POR_NEGOCIO } from '@crm/shared';
 import { api } from '@/lib/api';
 import { useSession } from '@/providers/session';
@@ -9,7 +9,7 @@ import { brl, cn } from '@/lib/utils';
 import { PageHeader } from '@/components/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Field, Input, Select, Textarea, Switch } from '@/components/ui/primitives';
+import { Field, Input, Select, Textarea } from '@/components/ui/primitives';
 import { PageLoader } from '@/components/ui/feedback';
 import { useToast } from '@/components/ui/toast';
 import type { Negocio } from './Negocios';
@@ -35,6 +35,11 @@ export function NegocioFormPage() {
     queryFn: () => api.negocios.fontes<{ id: string; nome: string }[]>(),
   });
 
+  const { data: documentos } = useQuery({
+    queryKey: ['documentos-comprador', tenantId],
+    queryFn: () => api.negocios.documentos<{ id: string; nome: string }[]>(),
+  });
+
   const { data: negocios, isLoading } = useQuery({
     queryKey: ['negocios', tenantId],
     queryFn: () => api.negocios.list<Negocio[]>(),
@@ -48,7 +53,7 @@ export function NegocioFormPage() {
   return (
     <>
       <PageHeader title={editando ? 'Editar negócio' : 'Novo negócio'} backTo={LISTA} />
-      <NegocioForm key={negocio?.id ?? 'novo'} negocio={negocio} fontes={fontes ?? []} />
+      <NegocioForm key={negocio?.id ?? 'novo'} negocio={negocio} fontes={fontes ?? []} documentos={documentos ?? []} />
     </>
   );
 }
@@ -56,9 +61,11 @@ export function NegocioFormPage() {
 function NegocioForm({
   negocio,
   fontes,
+  documentos,
 }: {
   negocio: Negocio | null;
   fontes: { id: string; nome: string }[];
+  documentos: { id: string; nome: string }[];
 }) {
   const { activeTenant } = useSession();
   const tenantId = activeTenant!.tenant_id;
@@ -79,25 +86,13 @@ function NegocioForm({
     custos_operacionais: negocio?.custos_operacionais ?? 0,
     comissao_terceiros: negocio?.comissao_terceiros ?? 0,
     fonte_id: negocio?.fonte_id ?? '',
+    documento_comprador_id: negocio?.documento_comprador_id ?? '',
     status: negocio?.status ?? 'em_negociacao',
-    ipva_status: negocio?.ipva_status ?? '',
-    pneus: negocio?.pneus ?? '',
-    gastos: negocio?.gastos ?? '',
-    fipe: negocio?.fipe ?? '',
-    preco_pedido: negocio?.preco_pedido ?? '',
     observacoes: negocio?.observacoes ?? '',
   });
   const [fotos, setFotos] = useState<File[]>([]);
   const [fotosExistentes, setFotosExistentes] = useState(0);
-  const [enviarLista, setEnviarLista] = useState(false);
-  const [grupoEnvio, setGrupoEnvio] = useState('');
   const [loading, setLoading] = useState(false);
-
-  // grupos p/ o disparo segmentado (tags dos contatos)
-  const { data: grupos } = useQuery({
-    queryKey: ['grupos', tenantId],
-    queryFn: () => api.contatos.grupos<string[]>(),
-  });
 
   // ao editar, conta as fotos já existentes p/ respeitar o limite (RF1.4)
   useEffect(() => {
@@ -154,12 +149,8 @@ function NegocioForm({
         custos_operacionais: num(f.custos_operacionais),
         comissao_terceiros: num(f.comissao_terceiros),
         fonte_id: f.fonte_id || null,
+        documento_comprador_id: f.documento_comprador_id || null,
         status: f.status as 'em_negociacao' | 'vendido' | 'entregue' | 'problema',
-        ipva_status: (f.ipva_status || null) as 'pago' | 'aberto' | null,
-        pneus: f.pneus || null,
-        gastos: f.gastos || null,
-        fipe: f.fipe ? Number(f.fipe) : null,
-        preco_pedido: f.preco_pedido ? Number(f.preco_pedido) : null,
         observacoes: f.observacoes || null,
       };
 
@@ -173,34 +164,7 @@ function NegocioForm({
 
       if (fotos.length && negocioId) await api.storage.uploadFotos(negocioId, fotos);
 
-      // RF3.1 — disparo ao marcar "enviar para a lista"
-      if (enviarLista && negocioId) {
-        try {
-          const r = await api.campanhas.novoCarro({
-            negocio_id: negocioId,
-            grupo: grupoEnvio || null,
-            dados: {
-              carro: f.carro,
-              ano: f.ano ? Number(f.ano) : null,
-              km: f.km ? Number(f.km) : null,
-              ipva_status: (f.ipva_status || null) as 'pago' | 'aberto' | null,
-              pneus: f.pneus || null,
-              gastos: f.gastos || null,
-              fipe: f.fipe ? Number(f.fipe) : null,
-              preco_pedido: f.preco_pedido ? Number(f.preco_pedido) : null,
-              observacao: f.observacoes || null,
-            },
-          });
-          toast(
-            `Salvo + campanha para ${r.total} contatos${grupoEnvio ? ` (grupo ${grupoEnvio})` : ''}`,
-            'success',
-          );
-        } catch (campErr) {
-          toast(`Salvo, mas campanha falhou: ${campErr instanceof Error ? campErr.message : ''}`, 'error');
-        }
-      } else {
-        toast('Negócio salvo', 'success');
-      }
+      toast('Negócio salvo', 'success');
       qc.invalidateQueries({ queryKey: ['negocios', tenantId] });
       navigate(LISTA);
     } catch (err) {
@@ -273,29 +237,20 @@ function NegocioForm({
               ))}
             </Select>
           </Field>
+          <Field label="Documento do comprador" className="col-span-2">
+            <Select
+              value={f.documento_comprador_id}
+              onChange={(e) => setF({ ...f, documento_comprador_id: e.target.value })}
+            >
+              <option value="">—</option>
+              {documentos.map((x) => (
+                <option key={x.id} value={x.id}>
+                  {x.nome}
+                </option>
+              ))}
+            </Select>
+          </Field>
         </div>
-
-        {/* Campos do anúncio (RF1.3) */}
-        <details className="rounded-lg border border-border p-3">
-          <summary className="cursor-pointer text-sm font-medium">Dados do anúncio</summary>
-          <div className="mt-3 grid grid-cols-2 gap-3">
-            <Field label="IPVA">
-              <Select value={f.ipva_status} onChange={(e) => setF({ ...f, ipva_status: e.target.value })}>
-                <option value="">—</option>
-                <option value="pago">Pago</option>
-                <option value="aberto">Em aberto</option>
-              </Select>
-            </Field>
-            <Field label="Pneus">
-              <Input value={f.pneus} onChange={(e) => setF({ ...f, pneus: e.target.value })} />
-            </Field>
-            <MoneyField label="FIPE" value={f.fipe} onChange={(v) => setF({ ...f, fipe: v })} />
-            <MoneyField label="Preço pedido" value={f.preco_pedido} onChange={(v) => setF({ ...f, preco_pedido: v })} />
-            <Field label="Gastos" className="col-span-2">
-              <Input value={f.gastos} onChange={(e) => setF({ ...f, gastos: e.target.value })} />
-            </Field>
-          </div>
-        </details>
 
         <Field label="Observações">
           <Textarea value={f.observacoes} onChange={(e) => setF({ ...f, observacoes: e.target.value })} />
@@ -344,31 +299,6 @@ function NegocioForm({
             </div>
           )}
         </Field>
-
-        {/* RF3.1 — enviar para a lista */}
-        <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
-          <label className="flex items-center justify-between">
-            <span className="flex items-center gap-2 text-sm font-medium">
-              <Send className="h-4 w-4 text-primary" /> Enviar para a lista (dispara campanha)
-            </span>
-            <Switch checked={enviarLista} onCheckedChange={setEnviarLista} />
-          </label>
-          {enviarLista && (
-            <div className="mt-3">
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                Destinatários
-              </label>
-              <Select value={grupoEnvio} onChange={(e) => setGrupoEnvio(e.target.value)}>
-                <option value="">Todos os elegíveis (opt-in + ativo)</option>
-                {(grupos ?? []).map((g) => (
-                  <option key={g} value={g}>
-                    Grupo: {g}
-                  </option>
-                ))}
-              </Select>
-            </div>
-          )}
-        </div>
 
         <div className="flex justify-end gap-2 pt-1">
           <Button type="button" variant="outline" onClick={() => navigate(LISTA)}>

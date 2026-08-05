@@ -1,13 +1,7 @@
 import { Hono } from 'hono';
-import {
-  montarMensagem,
-  linkCarroPublico,
-  TEMPLATE_PADRAO_ANUNCIO,
-  type DadosAnuncio,
-} from '@crm/shared';
+import { campanhaEnviarSchema } from '@crm/shared';
 import { requireAuth, requireTenantAtivo, type AuthEnv } from '../middleware/auth.js';
-import { baseUrlPublica } from '../base-url.js';
-import { env } from '../env.js';
+import { validate } from '../validate.js';
 
 export const campanhaRoutes = new Hono<AuthEnv>();
 campanhaRoutes.use('*', requireAuth, requireTenantAtivo);
@@ -37,29 +31,74 @@ campanhaRoutes.get('/:id/envios', async (c) => {
 });
 
 /**
- * Cria campanha de "novo carro" e enfileira envios (RF3.1).
- * Elegibilidade opt-in+ativo (RB5) e enforcement de limite do plano (RB8).
+ * Cria a campanha (rascunho) com o texto livre. As fotos são enviadas depois
+ * (POST /storage/campanhas/:id/fotos) e o disparo em POST /:id/enviar.
  */
-campanhaRoutes.post('/novo-carro', async (c) => {
+campanhaRoutes.post('/', async (c) => {
   const db = c.get('db');
   const { tenant_id, sub } = tid(c);
-  const body = (await c.req.json()) as {
-    negocio_id: string;
-    dados: DadosAnuncio;
-    template?: string | null;
-    grupo?: string | null;
-  };
+  const body = (await c.req.json().catch(() => ({}))) as { texto?: string };
+  const texto = (body.texto ?? '').trim();
+  if (!texto) return c.json({ error: 'Informe o texto da campanha.' }, 400);
+
+  const { data: camp, error } = await db
+    .from('campanhas')
+    .insert({
+      tenant_id: tenant_id!,
+      tipo: 'manual',
+      template_texto: texto,
+      status: 'rascunho',
+      criado_por: sub,
+    })
+    .select('id')
+    .single();
+  if (error || !camp) return c.json({ error: error?.message ?? 'Falha ao criar campanha' }, 400);
+  return c.json({ id: camp.id });
+});
+
+/**
+ * Enfileira os envios da campanha (RF3.1). Elegibilidade opt-in+ativo (RB5),
+ * filtro opcional por grupo (tag) e enforcement de limite do plano (RB8).
+ */
+campanhaRoutes.post('/:id/enviar', async (c) => {
+  const db = c.get('db');
+  const { tenant_id } = tid(c);
+  const campanhaId = c.req.param('id');
+  const v = validate(campanhaEnviarSchema, await c.req.json().catch(() => ({})));
+  if (!v.ok) return c.json({ error: v.error }, 422);
+  const { instance_id, grupo } = v.data;
+
+  // a campanha precisa existir e ser do tenant ativo (RLS filtra o select)
+  const { data: camp } = await db
+    .from('campanhas')
+    .select('id, status')
+    .eq('id', campanhaId)
+    .maybeSingle();
+  if (!camp) return c.json({ error: 'Campanha não encontrada' }, 404);
+  if (camp.status !== 'rascunho')
+    return c.json({ error: 'Esta campanha já foi enfileirada.' }, 422);
+
+  // o número escolhido precisa existir (RLS escopa o tenant) e não estar banido.
+  // O pareamento é feito por fora (Evolution), então não exigimos status 'conectada'.
+  const { data: inst } = await db
+    .from('whatsapp_instances')
+    .select('id, status')
+    .eq('id', instance_id)
+    .maybeSingle();
+  if (!inst) return c.json({ error: 'Número de WhatsApp não encontrado.' }, 422);
+  if (inst.status === 'banida')
+    return c.json({ error: 'O número escolhido está banido.' }, 422);
 
   // elegíveis (opt-in + ativo); se um grupo for informado, filtra pela tag (@>)
   let q = db.from('contatos').select('id').eq('opt_in_whatsapp', true).eq('ativo', true);
-  if (body.grupo) q = q.contains('tags', [body.grupo]);
+  if (grupo) q = q.contains('tags', [grupo]);
   const { data: contatos, error: cErr } = await q;
   if (cErr) return c.json({ error: cErr.message }, 400);
   if (!contatos || contatos.length === 0)
     return c.json(
       {
-        error: body.grupo
-          ? `Nenhum contato elegível (opt-in + ativo) no grupo "${body.grupo}".`
+        error: grupo
+          ? `Nenhum contato elegível (opt-in + ativo) no grupo "${grupo}".`
           : 'Nenhum contato elegível (opt-in + ativo).',
       },
       422,
@@ -80,51 +119,31 @@ campanhaRoutes.post('/novo-carro', async (c) => {
   // libera a reserva se algo abaixo falhar
   const liberar = () => db.rpc('liberar_envios', { p_destinatarios: contatos.length });
 
-  // template: usa o informado > o configurado no tenant (RF3.4) > o padrão
-  let template = body.template || null;
-  if (!template) {
-    const { data: t } = await db
-      .from('tenants')
-      .select('template_campanha')
-      .eq('id', tenant_id!)
-      .single();
-    template = t?.template_campanha || null;
-  }
-  template = template || TEMPLATE_PADRAO_ANUNCIO;
-  // domínio real da requisição do front (fallback: PUBLIC_APP_URL do env)
-  const link = linkCarroPublico(baseUrlPublica(c, env.PUBLIC_APP_URL), body.negocio_id);
-  const texto = montarMensagem(template, body.dados, link);
-
-  const { data: camp, error: campErr } = await db
+  const { error: upErr } = await db
     .from('campanhas')
-    .insert({
-      tenant_id: tenant_id!,
-      negocio_id: body.negocio_id,
-      tipo: 'novo_carro',
-      template_texto: texto,
+    .update({
       status: 'enfileirada',
       total_destinatarios: contatos.length,
-      criado_por: sub,
+      whatsapp_instance_id: instance_id,
     })
-    .select('id')
-    .single();
-  if (campErr || !camp) {
+    .eq('id', campanhaId);
+  if (upErr) {
     await liberar();
-    return c.json({ error: campErr?.message ?? 'Falha ao criar campanha' }, 400);
+    return c.json({ error: upErr.message }, 400);
   }
 
   const envios = contatos.map((ct) => ({
     tenant_id: tenant_id!,
-    campanha_id: camp.id,
+    campanha_id: campanhaId,
     contato_id: ct.id,
     status: 'pendente' as const,
   }));
   const { error: eErr } = await db.from('campanha_envios').insert(envios);
   if (eErr) {
-    await db.from('campanhas').delete().eq('id', camp.id);
+    await db.from('campanhas').update({ status: 'rascunho', total_destinatarios: 0 }).eq('id', campanhaId);
     await liberar();
     return c.json({ error: eErr.message }, 400);
   }
 
-  return c.json({ ok: true, campanha_id: camp.id, total: contatos.length });
+  return c.json({ ok: true, total: contatos.length });
 });

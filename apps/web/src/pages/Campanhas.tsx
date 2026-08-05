@@ -1,10 +1,11 @@
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Send, MessageCircle, CheckCheck, AlertTriangle, Clock } from 'lucide-react';
+import { Send, Plus, MessageCircle, CheckCheck, AlertTriangle, Clock } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useSession } from '@/providers/session';
 import { dataBR, cn } from '@/lib/utils';
 import { PageHeader } from '@/components/PageHeader';
+import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { EmptyState, PageLoader } from '@/components/ui/feedback';
@@ -45,7 +46,12 @@ export function CampanhasPage() {
     <>
       <PageHeader
         title="Campanhas"
-        description="Disparos de WhatsApp e saúde de entrega. Crie disparos ao salvar um negócio com 'enviar para a lista'."
+        description="Disparos de WhatsApp e saúde de entrega."
+        action={
+          <Button onClick={() => navigate('/campanhas/nova')}>
+            <Plus className="h-4 w-4" /> Nova campanha
+          </Button>
+        }
       />
 
       {isLoading ? (
@@ -54,7 +60,12 @@ export function CampanhasPage() {
         <EmptyState
           icon={Send}
           title="Nenhuma campanha"
-          description="Ao cadastrar um carro e marcar 'enviar para a lista', a campanha aparece aqui com o status de cada destinatário."
+          description="Crie uma campanha com texto e fotos para disparar no WhatsApp da sua lista."
+          action={
+            <Button onClick={() => navigate('/campanhas/nova')}>
+              <Plus className="h-4 w-4" /> Nova campanha
+            </Button>
+          }
         />
       ) : (
         <div className="space-y-3">

@@ -12,6 +12,7 @@ import { NegociosPage } from './pages/Negocios';
 import { NegocioFormPage } from './pages/NegocioForm';
 import { ContatosPage, ContatoFormPage } from './pages/Contatos';
 import { CampanhasPage, CampanhaDetalhePage } from './pages/Campanhas';
+import { CampanhaNovaPage } from './pages/CampanhaNova';
 import { CaptacaoPage, InvestimentoFormPage } from './pages/Captacao';
 import { CustosPage, LancamentoFormPage } from './pages/Custos';
 import { AcordosPage, AcordoFormPage, AcordoDetalhePage } from './pages/Acordos';
@@ -68,6 +69,7 @@ export function App() {
                   <Route path="/contatos/novo" element={<ContatoFormPage />} />
                   <Route path="/contatos/:id" element={<ContatoFormPage />} />
                   <Route path="/campanhas" element={<CampanhasPage />} />
+                  <Route path="/campanhas/nova" element={<CampanhaNovaPage />} />
                   <Route path="/campanhas/:id" element={<CampanhaDetalhePage />} />
                   <Route path="/captacao" element={<CaptacaoPage />} />
                   <Route path="/captacao/investimento" element={<InvestimentoFormPage />} />

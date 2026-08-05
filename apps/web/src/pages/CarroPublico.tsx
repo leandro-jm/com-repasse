@@ -2,17 +2,13 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Car, Gauge, Calendar } from 'lucide-react';
 import { api } from '@/lib/api';
-import { brl, hexToHslString } from '@/lib/utils';
+import { hexToHslString } from '@/lib/utils';
 import { PageLoader } from '@/components/ui/feedback';
 
 interface CarroPublico {
   carro: string;
   ano: number | null;
   km: number | null;
-  preco_pedido: number | null;
-  fipe: number | null;
-  ipva_status: string | null;
-  pneus: string | null;
   fotos: { url: string; is_capa: boolean }[];
   tenant: { nome: string; logo_url: string | null; cor_primaria: string | null };
 }
@@ -56,9 +52,8 @@ export function CarroPublicoPage() {
   }
 
   const fotos = data.fotos?.length ? data.fotos : [];
-  const temSpecs = data.ano != null || data.km != null || data.fipe != null;
-  const temLinhas = !!data.ipva_status || !!data.pneus;
-  const temDetalhes = fotos.length > 0 || data.preco_pedido != null || temSpecs || temLinhas;
+  const temSpecs = data.ano != null || data.km != null;
+  const temDetalhes = fotos.length > 0 || temSpecs;
 
   return (
     <div className="min-h-screen bg-background">
@@ -107,11 +102,7 @@ export function CarroPublicoPage() {
         <div className="mt-5 space-y-4">
           <div>
             <h1 className="text-2xl font-bold">{data.carro}</h1>
-            {data.preco_pedido != null ? (
-              <p className="mt-1 text-3xl font-bold text-primary">{brl(data.preco_pedido)}</p>
-            ) : (
-              <p className="mt-1 text-lg font-medium text-muted-foreground">Valor sob consulta</p>
-            )}
+            <p className="mt-1 text-lg font-medium text-muted-foreground">Valor sob consulta</p>
           </div>
 
           {temSpecs && (
@@ -120,17 +111,7 @@ export function CarroPublicoPage() {
               {data.km != null && (
                 <Info icon={Gauge} label="KM" value={`${data.km.toLocaleString('pt-BR')} km`} />
               )}
-              {data.fipe != null && <Info icon={Car} label="FIPE" value={brl(data.fipe)} />}
             </div>
-          )}
-
-          {temLinhas && (
-            <dl className="divide-y divide-border rounded-xl border border-border">
-              {data.ipva_status && (
-                <Row label="IPVA" value={data.ipva_status === 'pago' ? 'Pago' : 'Em aberto'} />
-              )}
-              {data.pneus && <Row label="Pneus" value={data.pneus} />}
-            </dl>
           )}
 
           {!temDetalhes && (
@@ -163,15 +144,6 @@ function Info({
         {label}
       </div>
       <p className="mt-1 font-semibold">{value}</p>
-    </div>
-  );
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex justify-between px-4 py-2.5 text-sm">
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className="font-medium">{value}</dd>
     </div>
   );
 }

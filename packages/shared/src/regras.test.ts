@@ -11,7 +11,7 @@ import {
   podeDisparar,
   enviosRestantes,
 } from './regras.js';
-import { montarMensagem, normalizarTelefoneBR, TEMPLATE_PADRAO_ANUNCIO } from './whatsapp.js';
+import { normalizarTelefoneBR } from './whatsapp.js';
 
 describe('RB1 — lucro por negócio', () => {
   it('calcula venda - (compra + custos cliente + operacionais + comissão)', () => {
@@ -91,29 +91,6 @@ describe('RB8 — limite de envios', () => {
   it('envios restantes nunca negativo', () => {
     expect(enviosRestantes(1200, 1000)).toBe(0);
     expect(enviosRestantes(300, 1000)).toBe(700);
-  });
-});
-
-describe('template de anúncio (RF3.2)', () => {
-  it('interpola dados e link, sem placeholders remanescentes', () => {
-    const msg = montarMensagem(
-      TEMPLATE_PADRAO_ANUNCIO,
-      {
-        carro: 'Onix',
-        ano: 2020,
-        km: 45000,
-        ipva_status: 'pago',
-        pneus: 'novos',
-        fipe: 52000,
-        preco_pedido: 49900,
-      },
-      'https://app.exemplo.com/c/abc',
-    );
-    expect(msg).toContain('Onix');
-    expect(msg).toContain('2020');
-    expect(msg).toContain('45.000 km');
-    expect(msg).toContain('https://app.exemplo.com/c/abc');
-    expect(msg).not.toMatch(/\{\{\w+\}\}/);
   });
 });
 

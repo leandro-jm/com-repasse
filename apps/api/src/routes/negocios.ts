@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { negocioSchema, fonteLeadSchema } from '@crm/shared';
+import { negocioSchema, fonteLeadSchema, documentoCompradorSchema } from '@crm/shared';
 import { requireAuth, requireTenantAtivo, type AuthEnv } from '../middleware/auth.js';
 import { validate, somentePresentes } from '../validate.js';
 
@@ -8,6 +8,7 @@ negocioRoutes.use('*', requireAuth, requireTenantAtivo);
 
 const negocioUpdateSchema = negocioSchema.partial();
 const fonteUpdateSchema = fonteLeadSchema.partial();
+const documentoUpdateSchema = documentoCompradorSchema.partial();
 const tid = (c: { get: (k: 'claims') => { tenant_id: string | null } }) => c.get('claims').tenant_id!;
 
 negocioRoutes.get('/', async (c) => {
@@ -129,6 +130,58 @@ negocioRoutes.patch('/meta/fontes/:id', async (c) => {
   const { error } = await c
     .get('db')
     .from('fontes_lead')
+    .update(patch)
+    .eq('id', c.req.param('id'));
+  if (error) return c.json({ error: error.message }, 400);
+  return c.json({ ok: true });
+});
+
+// documentos do comprador (dropdown controlado por tenant) — só ativos, p/ selects
+negocioRoutes.get('/meta/documentos', async (c) => {
+  const { data, error } = await c
+    .get('db')
+    .from('documentos_comprador')
+    .select('id, nome')
+    .eq('ativo', true)
+    .order('nome');
+  if (error) return c.json({ error: error.message }, 400);
+  return c.json(data);
+});
+
+// administração de documentos: lista todos (inclui inativos) p/ a tela de Configurações
+negocioRoutes.get('/meta/documentos/todas', async (c) => {
+  const { data, error } = await c
+    .get('db')
+    .from('documentos_comprador')
+    .select('id, nome, ativo')
+    .order('ativo', { ascending: false })
+    .order('nome');
+  if (error) return c.json({ error: error.message }, 400);
+  return c.json(data);
+});
+
+negocioRoutes.post('/meta/documentos', async (c) => {
+  const v = validate(documentoCompradorSchema, await c.req.json().catch(() => null));
+  if (!v.ok) return c.json({ error: v.error }, 400);
+  const { data, error } = await c
+    .get('db')
+    .from('documentos_comprador')
+    .insert({ ...v.data, tenant_id: tid(c) })
+    .select('id, nome, ativo')
+    .single();
+  if (error) return c.json({ error: error.message }, 400);
+  return c.json(data);
+});
+
+// renomear / ativar-desativar (soft-delete preserva o histórico)
+negocioRoutes.patch('/meta/documentos/:id', async (c) => {
+  const raw = await c.req.json().catch(() => null);
+  const v = validate(documentoUpdateSchema, raw);
+  if (!v.ok) return c.json({ error: v.error }, 400);
+  const patch = somentePresentes(v.data, raw);
+  const { error } = await c
+    .get('db')
+    .from('documentos_comprador')
     .update(patch)
     .eq('id', c.req.param('id'));
   if (error) return c.json({ error: error.message }, 400);

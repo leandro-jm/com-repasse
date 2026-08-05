@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Car, Filter, Send, Trash2 } from 'lucide-react';
+import { Plus, Car, Filter, Trash2 } from 'lucide-react';
 import { STATUS_NEGOCIO } from '@crm/shared';
 import { api } from '@/lib/api';
 import { useSession } from '@/providers/session';
@@ -30,12 +30,8 @@ export interface Negocio {
   comissao_terceiros: number;
   lucro: number;
   fonte_id: string | null;
+  documento_comprador_id: string | null;
   status: string;
-  ipva_status: string | null;
-  pneus: string | null;
-  gastos: string | null;
-  fipe: number | null;
-  preco_pedido: number | null;
   observacoes: string | null;
 }
 
@@ -59,7 +55,6 @@ export function NegociosPage() {
   const [fFonte, setFFonte] = useState('');
   const [fMes, setFMes] = useState('');
   const [fPlaca, setFPlaca] = useState('');
-  const [enviandoId, setEnviandoId] = useState<string | null>(null);
 
   const { data: fontes } = useQuery({
     queryKey: ['fontes', tenantId],
@@ -84,33 +79,6 @@ export function NegociosPage() {
   }, [data, fStatus, fFonte, fMes, placaBusca]);
 
   const totalLucro = filtrados.reduce((s, n) => s + Number(n.lucro), 0);
-
-  async function dispararCampanha(n: Negocio) {
-    if (enviandoId) return; // evita clique duplo → campanha duplicada
-    setEnviandoId(n.id);
-    try {
-      const r = await api.campanhas.novoCarro({
-        negocio_id: n.id,
-        dados: {
-          carro: n.carro,
-          ano: n.ano,
-          km: n.km,
-          ipva_status: n.ipva_status,
-          pneus: n.pneus,
-          gastos: n.gastos,
-          fipe: n.fipe,
-          preco_pedido: n.preco_pedido,
-          observacao: n.observacoes,
-        },
-      });
-      toast(`Campanha enfileirada para ${r.total} contatos`, 'success');
-      qc.invalidateQueries({ queryKey: ['campanhas', tenantId] });
-    } catch (err) {
-      toast(err instanceof Error ? err.message : 'Falha ao criar campanha', 'error');
-    } finally {
-      setEnviandoId(null);
-    }
-  }
 
   async function remover(n: Negocio) {
     if (
@@ -193,7 +161,7 @@ export function NegociosPage() {
         <EmptyState
           icon={Car}
           title="Nenhum negócio"
-          description="Cadastre a entrada de um carro para começar a controlar lucro, fotos e disparar campanhas."
+          description="Cadastre a entrada de um carro para começar a controlar lucro e fotos."
           action={
             <Button onClick={() => navigate('/negocios/novo')}>
               <Plus className="h-4 w-4" /> Cadastrar negócio
@@ -232,16 +200,6 @@ export function NegociosPage() {
                 <div className="mt-3 flex gap-2">
                   <Button variant="outline" size="sm" className="flex-1" onClick={() => navigate(`/negocios/${n.id}`)}>
                     Editar
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    className="flex-1"
-                    loading={enviandoId === n.id}
-                    disabled={!!enviandoId}
-                    onClick={() => dispararCampanha(n)}
-                  >
-                    <Send className="h-3.5 w-3.5" /> Enviar p/ lista
                   </Button>
                   <Button variant="ghost" size="icon" onClick={() => remover(n)} aria-label="Excluir">
                     <Trash2 className="h-4 w-4 text-destructive" />

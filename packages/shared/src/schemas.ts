@@ -61,12 +61,8 @@ export const negocioSchema = z.object({
   comissao_terceiros: numeroNaoNegativo,
   comprador_id: z.string().uuid().nullish(),
   fonte_id: z.string().uuid().nullish(),
+  documento_comprador_id: z.string().uuid().nullish(),
   tipo_documento: z.enum(['procuracao', 'dut']).nullish(),
-  ipva_status: z.enum(['pago', 'aberto']).nullish(),
-  pneus: z.string().nullish(),
-  gastos: z.string().nullish(),
-  fipe: z.coerce.number().min(0).nullish(),
-  preco_pedido: z.coerce.number().min(0).nullish(),
   status: z.enum(STATUS_NEGOCIO).default('em_negociacao'),
   data_retirada: dataISO.nullish(),
   data_entrega: dataISO.nullish(),
@@ -95,6 +91,13 @@ export const fonteLeadSchema = z.object({
   ativo: z.boolean().default(true),
 });
 export type FonteLeadForm = z.infer<typeof fonteLeadSchema>;
+
+/** Documento do comprador (dropdown controlado por tenant, Módulo 5). Só nome. */
+export const documentoCompradorSchema = z.object({
+  nome: z.string().min(1, 'Informe o nome'),
+  ativo: z.boolean().default(true),
+});
+export type DocumentoCompradorForm = z.infer<typeof documentoCompradorSchema>;
 
 /** Lançamento de custo (Módulo 6). */
 export const custoSchema = z.object({
@@ -171,15 +174,43 @@ export const whatsappConnSchema = z.object({
 });
 export type WhatsappConnForm = z.infer<typeof whatsappConnSchema>;
 
-/** Upsert de conexão WhatsApp no servidor: api_key é opcional (só troca se enviada). */
-export const whatsappUpsertSchema = z.object({
+// campos comuns de uma conexão WhatsApp (multi-número: N por tenant).
+const whatsappBaseShape = {
   provider: z.enum(['evolution', 'cloud_api']).default('evolution'),
   api_url: z.string().url('URL inválida'),
-  api_key: z.string().min(1).optional(),
   instance_name: z.string().min(1, 'Informe a instância'),
   numero: z.string().nullish(),
-});
+  label: z.string().max(60).nullish(), // nome amigável (ex.: "Vendas")
+  // intervalo (throttle) entre envios, em ms — RF3.7 (default banco: 4s–12s)
+  throttle_min_ms: z.coerce.number().int().min(0).max(600000).default(4000),
+  throttle_max_ms: z.coerce.number().int().min(0).max(600000).default(12000),
+};
+
+// jitter válido: max >= min. Mesma regra nos dois schemas (criar/editar).
+const throttleValido = {
+  check: (v: { throttle_min_ms: number; throttle_max_ms: number }) =>
+    v.throttle_max_ms >= v.throttle_min_ms,
+  opts: { message: 'O intervalo máximo deve ser maior ou igual ao mínimo', path: ['throttle_max_ms'] },
+} as const;
+
+/** Edição de uma conexão existente: api_key é opcional (só troca se enviada). */
+export const whatsappUpsertSchema = z
+  .object({ ...whatsappBaseShape, api_key: z.string().min(1).optional() })
+  .refine(throttleValido.check, { ...throttleValido.opts, path: ['throttle_max_ms'] });
 export type WhatsappUpsertForm = z.infer<typeof whatsappUpsertSchema>;
+
+/** Criação de uma conexão nova: api_key é obrigatória. */
+export const whatsappCreateSchema = z
+  .object({ ...whatsappBaseShape, api_key: z.string().min(1, 'Informe a API key') })
+  .refine(throttleValido.check, { ...throttleValido.opts, path: ['throttle_max_ms'] });
+export type WhatsappCreateForm = z.infer<typeof whatsappCreateSchema>;
+
+/** Disparo de campanha: número obrigatório (1 por campanha) + grupo opcional. */
+export const campanhaEnviarSchema = z.object({
+  instance_id: z.string().uuid('Escolha o número de WhatsApp da campanha'),
+  grupo: z.string().nullish(),
+});
+export type CampanhaEnviarForm = z.infer<typeof campanhaEnviarSchema>;
 
 /** Atualização de perfil do próprio usuário. */
 export const perfilUpdateSchema = z.object({

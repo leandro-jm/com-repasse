@@ -3,6 +3,9 @@
 /** Máximo de fotos por negócio (RF1.4). */
 export const MAX_FOTOS_POR_NEGOCIO = 15;
 
+/** Máximo de fotos por campanha (tela de disparo manual). */
+export const MAX_FOTOS_CAMPANHA = 7;
+
 /** Anexos de acordo: máximo de arquivos, tamanho e tipos aceitos. */
 export const MAX_ANEXOS_ACORDO = 10;
 export const MAX_ANEXO_BYTES = 5 * 1024 * 1024; // 5 MB

@@ -102,6 +102,12 @@ insert into fontes_lead (id, tenant_id, nome, tipo) values
   ('f0000000-0000-0000-0000-000000000004','aaaaaaaa-0000-0000-0000-000000000000','WhatsApp (lista)','organico')
 on conflict (id) do nothing;
 
+-- Documentos do comprador (select controlado por tenant) — IDs fixos p/ referência
+insert into documentos_comprador (id, tenant_id, nome) values
+  ('d0000000-0000-0000-0000-000000000001','aaaaaaaa-0000-0000-0000-000000000000','Procuração'),
+  ('d0000000-0000-0000-0000-000000000002','aaaaaaaa-0000-0000-0000-000000000000','DUT')
+on conflict (id) do nothing;
+
 insert into centros_custo (id, tenant_id, nome, tipo) values
   ('c0000000-0000-0000-0000-000000000001','aaaaaaaa-0000-0000-0000-000000000000','Custos operacionais','operacional'),
   ('c0000000-0000-0000-0000-000000000002','aaaaaaaa-0000-0000-0000-000000000000','Comissão terceiros','operacional'),
